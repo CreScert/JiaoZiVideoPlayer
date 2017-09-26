@@ -52,7 +52,6 @@ public abstract class JZVideoPlayer extends FrameLayout implements View.OnClickL
     public static final int CURRENT_STATE_PREPARING = 1;
     public static final int CURRENT_STATE_PREPARING_CHANGING_URL = 2;
     public static final int CURRENT_STATE_PLAYING = 3;
-    public static final int CURRENT_STATE_PLAYING_BUFFERING_START = 4;
     public static final int CURRENT_STATE_PAUSE = 5;
     public static final int CURRENT_STATE_AUTO_COMPLETE = 6;
     public static final int CURRENT_STATE_ERROR = 7;
@@ -64,7 +63,6 @@ public abstract class JZVideoPlayer extends FrameLayout implements View.OnClickL
     public static boolean SAVE_PROGRESS = true;
     public static boolean WIFI_TIP_DIALOG_SHOWED = false;
     public static long CLICK_QUIT_FULLSCREEN_TIME = 0;
-    public static int BACKUP_PLAYING_BUFFERING_STATE = -1;
     public static long lastAutoFullscreenTime = 0;
     public static AudioManager.OnAudioFocusChangeListener onAudioFocusChangeListener = new AudioManager.OnAudioFocusChangeListener() {
         @Override
@@ -511,7 +509,7 @@ public abstract class JZVideoPlayer extends FrameLayout implements View.OnClickL
     public void onVideoRendingStart() {
         Log.i(TAG, "onVideoRendingStart " + " [" + this.hashCode() + "] ");
         isVideoRendingStart = true;
-        if (currentState != CURRENT_STATE_PREPARING && currentState != CURRENT_STATE_PREPARING_CHANGING_URL && currentState != CURRENT_STATE_PLAYING_BUFFERING_START)
+        if (currentState != CURRENT_STATE_PREPARING && currentState != CURRENT_STATE_PREPARING_CHANGING_URL)
             return;
         if (seekToInAdvance != 0) {
             JZMediaManager.instance().mediaPlayer.seekTo(seekToInAdvance);
@@ -546,9 +544,6 @@ public abstract class JZVideoPlayer extends FrameLayout implements View.OnClickL
                 break;
             case CURRENT_STATE_PAUSE:
                 onStatePause();
-                break;
-            case CURRENT_STATE_PLAYING_BUFFERING_START:
-                onStatePlaybackBufferingStart();
                 break;
             case CURRENT_STATE_ERROR:
                 onStateError();
@@ -606,12 +601,6 @@ public abstract class JZVideoPlayer extends FrameLayout implements View.OnClickL
         startProgressTimer();
     }
 
-    public void onStatePlaybackBufferingStart() {
-        Log.i(TAG, "onStatePlaybackBufferingStart " + " [" + this.hashCode() + "] ");
-        currentState = CURRENT_STATE_PLAYING_BUFFERING_START;
-        startProgressTimer();
-    }
-
     public void onStateError() {
         Log.i(TAG, "onStateError " + " [" + this.hashCode() + "] ");
         currentState = CURRENT_STATE_ERROR;
@@ -628,20 +617,7 @@ public abstract class JZVideoPlayer extends FrameLayout implements View.OnClickL
 
     public void onInfo(int what, int extra) {
         Log.d(TAG, "onInfo what - " + what + " extra - " + extra);
-        if (what == MediaPlayer.MEDIA_INFO_BUFFERING_START) {
-            Log.d(TAG, "MEDIA_INFO_BUFFERING_START");
-            if (currentState == CURRENT_STATE_PLAYING_BUFFERING_START) return;
-            BACKUP_PLAYING_BUFFERING_STATE = currentState;
-            onStatePlaybackBufferingStart();
-        } else if (what == MediaPlayer.MEDIA_INFO_BUFFERING_END) {
-            Log.d(TAG, "MEDIA_INFO_BUFFERING_END");
-            if (BACKUP_PLAYING_BUFFERING_STATE != -1) {
-                if (currentState == CURRENT_STATE_PLAYING_BUFFERING_START) {
-                    setState(BACKUP_PLAYING_BUFFERING_STATE);
-                }
-                BACKUP_PLAYING_BUFFERING_STATE = -1;
-            }
-        } else if (what == MediaPlayer.MEDIA_INFO_VIDEO_RENDERING_START) {
+        if (what == MediaPlayer.MEDIA_INFO_VIDEO_RENDERING_START) {
             onVideoRendingStart();
         }
     }
@@ -830,8 +806,7 @@ public abstract class JZVideoPlayer extends FrameLayout implements View.OnClickL
         if (JZMediaManager.instance().mediaPlayer == null)
             return position;//这行代码不应该在这，如果代码和逻辑万无一失的话，心头之恨呐
         if (currentState == CURRENT_STATE_PLAYING ||
-                currentState == CURRENT_STATE_PAUSE ||
-                currentState == CURRENT_STATE_PLAYING_BUFFERING_START) {
+                currentState == CURRENT_STATE_PAUSE) {
             try {
                 position = JZMediaManager.instance().mediaPlayer.getCurrentPosition();
             } catch (IllegalStateException e) {
@@ -1061,7 +1036,7 @@ public abstract class JZVideoPlayer extends FrameLayout implements View.OnClickL
     public class ProgressTimerTask extends TimerTask {
         @Override
         public void run() {
-            if (currentState == CURRENT_STATE_PLAYING || currentState == CURRENT_STATE_PAUSE || currentState == CURRENT_STATE_PLAYING_BUFFERING_START) {
+            if (currentState == CURRENT_STATE_PLAYING || currentState == CURRENT_STATE_PAUSE) {
 //                Log.v(TAG, "onProgressUpdate " + position + "/" + duration + " [" + this.hashCode() + "] ");
                 mHandler.post(new Runnable() {
                     @Override
