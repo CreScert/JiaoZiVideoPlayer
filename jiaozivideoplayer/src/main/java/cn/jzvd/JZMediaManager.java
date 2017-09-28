@@ -22,34 +22,36 @@ import java.util.Map;
  * On 2015/11/30 15:39
  */
 public class JZMediaManager implements TextureView.SurfaceTextureListener, MediaPlayer.OnPreparedListener, MediaPlayer.OnCompletionListener, MediaPlayer.OnBufferingUpdateListener, MediaPlayer.OnSeekCompleteListener, MediaPlayer.OnErrorListener, MediaPlayer.OnInfoListener, MediaPlayer.OnVideoSizeChangedListener {
-    public static final int HANDLER_PREPARE = 0;
-    public static final int HANDLER_RELEASE = 2;
-    public static final String TAG = "JiaoZiVideoPlayer";
+    public static String TAG = "JieCaoVideoPlayer";
+
+    private static JZMediaManager JCMediaManager;
     public static JZResizeTextureView textureView;
     public static SurfaceTexture savedSurfaceTexture;
+    public MediaPlayer mediaPlayer = new MediaPlayer();
     public static String CURRENT_PLAYING_URL;
     public static boolean CURRENT_PLING_LOOP;
     public static Map<String, String> MAP_HEADER_DATA;
-    private static JZMediaManager JZMediaManager;
-    public MediaPlayer mediaPlayer = new MediaPlayer();
     public int currentVideoWidth = 0;
     public int currentVideoHeight = 0;
+
+    public static final int HANDLER_PREPARE = 0;
+    public static final int HANDLER_RELEASE = 2;
     HandlerThread mMediaHandlerThread;
     MediaHandler mMediaHandler;
     Handler mainThreadHandler;
+
+    public static JZMediaManager instance() {
+        if (JCMediaManager == null) {
+            JCMediaManager = new JZMediaManager();
+        }
+        return JCMediaManager;
+    }
 
     public JZMediaManager() {
         mMediaHandlerThread = new HandlerThread(TAG);
         mMediaHandlerThread.start();
         mMediaHandler = new MediaHandler((mMediaHandlerThread.getLooper()));
         mainThreadHandler = new Handler();
-    }
-
-    public static JZMediaManager instance() {
-        if (JZMediaManager == null) {
-            JZMediaManager = new JZMediaManager();
-        }
-        return JZMediaManager;
     }
 
     public Point getVideoSize() {
@@ -60,133 +62,6 @@ public class JZMediaManager implements TextureView.SurfaceTextureListener, Media
         }
     }
 
-    public void prepare() {
-        releaseMediaPlayer();
-        Message msg = new Message();
-        msg.what = HANDLER_PREPARE;
-        mMediaHandler.sendMessage(msg);
-    }
-
-    public void releaseMediaPlayer() {
-        Message msg = new Message();
-        msg.what = HANDLER_RELEASE;
-        mMediaHandler.sendMessage(msg);
-    }
-
-    @Override
-    public void onSurfaceTextureAvailable(SurfaceTexture surfaceTexture, int i, int i1) {
-        Log.i(TAG, "onSurfaceTextureAvailable [" + JZVideoPlayerManager.getCurrentJzvd().hashCode() + "] ");
-        if (savedSurfaceTexture == null) {
-            savedSurfaceTexture = surfaceTexture;
-            prepare();
-        } else {
-            textureView.setSurfaceTexture(savedSurfaceTexture);
-        }
-    }
-
-    @Override
-    public void onSurfaceTextureSizeChanged(SurfaceTexture surfaceTexture, int i, int i1) {
-        // 如果SurfaceTexture还没有更新Image，则记录SizeChanged事件，否则忽略
-        Log.i(TAG, "onSurfaceTextureSizeChanged [" + JZVideoPlayerManager.getCurrentJzvd().hashCode() + "] ");
-    }
-
-    @Override
-    public boolean onSurfaceTextureDestroyed(SurfaceTexture surfaceTexture) {
-        return savedSurfaceTexture == null;
-    }
-
-    @Override
-    public void onSurfaceTextureUpdated(SurfaceTexture surfaceTexture) {
-    }
-
-    @Override
-    public void onPrepared(MediaPlayer mp) {
-        mediaPlayer.start();
-        mainThreadHandler.post(new Runnable() {
-            @Override
-            public void run() {
-                if (JZVideoPlayerManager.getCurrentJzvd() != null) {
-                    JZVideoPlayerManager.getCurrentJzvd().onPrepared();
-                }
-            }
-        });
-    }
-
-    @Override
-    public void onCompletion(MediaPlayer mp) {
-        mainThreadHandler.post(new Runnable() {
-            @Override
-            public void run() {
-                if (JZVideoPlayerManager.getCurrentJzvd() != null) {
-                    JZVideoPlayerManager.getCurrentJzvd().onAutoCompletion();
-                }
-            }
-        });
-    }
-
-    @Override
-    public void onBufferingUpdate(MediaPlayer mp, final int percent) {
-        mainThreadHandler.post(new Runnable() {
-            @Override
-            public void run() {
-                if (JZVideoPlayerManager.getCurrentJzvd() != null) {
-                    JZVideoPlayerManager.getCurrentJzvd().setBufferProgress(percent);
-                }
-            }
-        });
-    }
-
-    @Override
-    public void onSeekComplete(MediaPlayer mp) {
-        mainThreadHandler.post(new Runnable() {
-            @Override
-            public void run() {
-                if (JZVideoPlayerManager.getCurrentJzvd() != null) {
-                    JZVideoPlayerManager.getCurrentJzvd().onSeekComplete();
-                }
-            }
-        });
-    }
-
-    @Override
-    public boolean onError(MediaPlayer mp, final int what, final int extra) {
-        mainThreadHandler.post(new Runnable() {
-            @Override
-            public void run() {
-                if (JZVideoPlayerManager.getCurrentJzvd() != null) {
-                    JZVideoPlayerManager.getCurrentJzvd().onError(what, extra);
-                }
-            }
-        });
-        return true;
-    }
-
-    @Override
-    public boolean onInfo(MediaPlayer mp, final int what, final int extra) {
-        mainThreadHandler.post(new Runnable() {
-            @Override
-            public void run() {
-                if (JZVideoPlayerManager.getCurrentJzvd() != null) {
-                    JZVideoPlayerManager.getCurrentJzvd().onInfo(what, extra);
-                }
-            }
-        });
-        return false;
-    }
-
-    @Override
-    public void onVideoSizeChanged(MediaPlayer mp, int width, int height) {
-        currentVideoWidth = width;
-        currentVideoHeight = height;
-        mainThreadHandler.post(new Runnable() {
-            @Override
-            public void run() {
-                if (JZVideoPlayerManager.getCurrentJzvd() != null) {
-                    JZVideoPlayerManager.getCurrentJzvd().onVideoSizeChanged();
-                }
-            }
-        });
-    }
 
     public class MediaHandler extends Handler {
         public MediaHandler(Looper looper) {
@@ -228,5 +103,138 @@ public class JZMediaManager implements TextureView.SurfaceTextureListener, Media
             }
         }
     }
+
+    public void prepare() {
+        releaseMediaPlayer();
+        Message msg = new Message();
+        msg.what = HANDLER_PREPARE;
+        mMediaHandler.sendMessage(msg);
+    }
+
+
+    public void releaseMediaPlayer() {
+        Message msg = new Message();
+        msg.what = HANDLER_RELEASE;
+        mMediaHandler.sendMessage(msg);
+    }
+
+    @Override
+    public void onSurfaceTextureAvailable(SurfaceTexture surfaceTexture, int i, int i1) {
+        Log.i(TAG, "onSurfaceTextureAvailable [" + JZVideoPlayerManager.getCurrentJcvd().hashCode() + "] ");
+        if (savedSurfaceTexture == null) {
+            savedSurfaceTexture = surfaceTexture;
+            prepare();
+        } else {
+            textureView.setSurfaceTexture(savedSurfaceTexture);
+        }
+    }
+
+
+
+    @Override
+    public void onSurfaceTextureSizeChanged(SurfaceTexture surfaceTexture, int i, int i1) {
+        // 如果SurfaceTexture还没有更新Image，则记录SizeChanged事件，否则忽略
+        Log.i(TAG, "onSurfaceTextureSizeChanged [" + JZVideoPlayerManager.getCurrentJcvd().hashCode() + "] ");
+    }
+
+    @Override
+    public boolean onSurfaceTextureDestroyed(SurfaceTexture surfaceTexture) {
+        return savedSurfaceTexture == null;
+    }
+
+    @Override
+    public void onSurfaceTextureUpdated(SurfaceTexture surfaceTexture) {
+    }
+
+    @Override
+    public void onPrepared(MediaPlayer mp) {
+        mediaPlayer.start();
+        mainThreadHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                if (JZVideoPlayerManager.getCurrentJcvd() != null) {
+                    JZVideoPlayerManager.getCurrentJcvd().onPrepared();
+                }
+            }
+        });
+    }
+
+    @Override
+    public void onCompletion(MediaPlayer mp) {
+        mainThreadHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                if (JZVideoPlayerManager.getCurrentJcvd() != null) {
+                    JZVideoPlayerManager.getCurrentJcvd().onAutoCompletion();
+                }
+            }
+        });
+    }
+
+    @Override
+    public void onBufferingUpdate(MediaPlayer mp, final int percent) {
+        mainThreadHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                if (JZVideoPlayerManager.getCurrentJcvd() != null) {
+                    JZVideoPlayerManager.getCurrentJcvd().setBufferProgress(percent);
+                }
+            }
+        });
+    }
+
+    @Override
+    public void onSeekComplete(MediaPlayer mp) {
+        mainThreadHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                if (JZVideoPlayerManager.getCurrentJcvd() != null) {
+                    JZVideoPlayerManager.getCurrentJcvd().onSeekComplete();
+                }
+            }
+        });
+    }
+
+    @Override
+    public boolean onError(MediaPlayer mp, final int what, final int extra) {
+        mainThreadHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                if (JZVideoPlayerManager.getCurrentJcvd() != null) {
+                    JZVideoPlayerManager.getCurrentJcvd().onError(what, extra);
+                }
+            }
+        });
+        return true;
+    }
+
+    @Override
+    public boolean onInfo(MediaPlayer mp, final int what, final int extra) {
+        mainThreadHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                if (JZVideoPlayerManager.getCurrentJcvd() != null) {
+                    JZVideoPlayerManager.getCurrentJcvd().onInfo(what, extra);
+                }
+            }
+        });
+        return false;
+    }
+
+    @Override
+    public void onVideoSizeChanged(MediaPlayer mp, int width, int height) {
+        currentVideoWidth = width;
+        currentVideoHeight = height;
+        mainThreadHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                if (JZVideoPlayerManager.getCurrentJcvd() != null) {
+                    JZVideoPlayerManager.getCurrentJcvd().onVideoSizeChanged();
+                }
+            }
+        });
+    }
+
+
 
 }

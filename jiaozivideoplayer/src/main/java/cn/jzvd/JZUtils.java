@@ -22,7 +22,7 @@ import java.util.Locale;
  * On 2016/02/21 12:25
  */
 public class JZUtils {
-    public static final String TAG = "JiaoZiVideoPlayer";
+    public static final String TAG = "JiaoCaoVideoPlayer";
 
     public static String stringForTime(int timeMs) {
         if (timeMs <= 0 || timeMs >= 24 * 60 * 60 * 1000) {
@@ -87,6 +87,7 @@ public class JZUtils {
         return null;
     }
 
+    //////////////////////////
     public static void setRequestedOrientation(Context context, int orientation) {
         if (JZUtils.getAppCompActivity(context) != null) {
             JZUtils.getAppCompActivity(context).setRequestedOrientation(
@@ -96,7 +97,7 @@ public class JZUtils {
                     orientation);
         }
     }
-
+    ////////////////////////
     public static Window getWindow(Context context) {
         if (JZUtils.getAppCompActivity(context) != null) {
             return JZUtils.getAppCompActivity(context).getWindow();
@@ -104,7 +105,6 @@ public class JZUtils {
             return JZUtils.scanForActivity(context).getWindow();
         }
     }
-
     public static int dip2px(Context context, float dpValue) {
         final float scale = context.getResources().getDisplayMetrics().density;
         return (int) (dpValue * scale + 0.5f);
@@ -112,8 +112,7 @@ public class JZUtils {
 
     public static void saveProgress(Context context, String url, int progress) {
         if (!JZVideoPlayer.SAVE_PROGRESS) return;
-        Log.i(TAG, "saveProgress: " + progress);
-        SharedPreferences spn = context.getSharedPreferences("JZVD_PROGRESS",
+        SharedPreferences spn = context.getSharedPreferences("JCVD_PROGRESS",
                 Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = spn.edit();
         editor.putInt(url, progress);
@@ -123,7 +122,7 @@ public class JZUtils {
     public static int getSavedProgress(Context context, String url) {
         if (!JZVideoPlayer.SAVE_PROGRESS) return 0;
         SharedPreferences spn;
-        spn = context.getSharedPreferences("JZVD_PROGRESS",
+        spn = context.getSharedPreferences("JCVD_PROGRESS",
                 Context.MODE_PRIVATE);
         return spn.getInt(url, 0);
     }
@@ -136,22 +135,27 @@ public class JZUtils {
      */
     public static void clearSavedProgress(Context context, String url) {
         if (TextUtils.isEmpty(url)) {
-            SharedPreferences spn = context.getSharedPreferences("JZVD_PROGRESS",
+            SharedPreferences spn = context.getSharedPreferences("JCVD_PROGRESS",
                     Context.MODE_PRIVATE);
             spn.edit().clear().apply();
         } else {
-            SharedPreferences spn = context.getSharedPreferences("JZVD_PROGRESS",
+            SharedPreferences spn = context.getSharedPreferences("JCVD_PROGRESS",
                     Context.MODE_PRIVATE);
             spn.edit().putInt(url, 0).apply();
         }
     }
 
     public static String getCurrentUrlFromMap(LinkedHashMap<String, String> map, int index) {
-        if (map.size() == 1) {
-            return getValueFromLinkedMap(map, index);
-        } else {
-            return getValueFromLinkedMap(map, index);
+        if(map!=null) {
+            if (map.size() == 1) {
+                return getValueFromLinkedMap(map, index);
+            } else {
+                return getValueFromLinkedMap(map, index);
+            }
+        }else{
+            Log.e("JZUtils","map is null");
         }
+        return "";
     }
 
     public static String getValueFromLinkedMap(LinkedHashMap<String, String> map, int index) {

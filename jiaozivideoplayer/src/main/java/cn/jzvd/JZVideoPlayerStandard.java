@@ -9,6 +9,7 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.Color;
+import android.net.ConnectivityManager;
 import android.text.TextUtils;
 import android.util.AttributeSet;
 import android.view.Gravity;
@@ -31,6 +32,11 @@ import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.Timer;
 import java.util.TimerTask;
+
+import cn.jzvd.broadcast.NetDataUtil;
+import cn.jzvd.broadcast.NetWorkReceiver;
+import cn.jzvd.broadcast.NetWorkReceiverCallback;
+
 
 /**
  * Created by Nathen
@@ -58,39 +64,14 @@ public class JZVideoPlayerStandard extends JZVideoPlayer {
     protected TextView mDialogSeekTime;
     protected TextView mDialogTotalTime;
     protected ImageView mDialogIcon;
+    protected Dialog mBrightnessDialog;
+    protected ProgressBar mDialogBrightnessProgressBar;
     protected Dialog mVolumeDialog;
     protected ProgressBar mDialogVolumeProgressBar;
     protected TextView mDialogVolumeTextView;
     protected ImageView mDialogVolumeImageView;
-    protected Dialog mBrightnessDialog;
-    protected ProgressBar mDialogBrightnessProgressBar;
     protected TextView mDialogBrightnessTextView;
     private boolean brocasting = false;
-    private BroadcastReceiver battertReceiver = new BroadcastReceiver() {
-        public void onReceive(Context context, Intent intent) {
-            String action = intent.getAction();
-            if (Intent.ACTION_BATTERY_CHANGED.equals(action)) {
-                int level = intent.getIntExtra("level", 0);
-                int scale = intent.getIntExtra("scale", 100);
-                int percent = level * 100 / scale;
-                if (percent < 15) {
-                    battery_level.setBackgroundResource(R.drawable.jz_battery_level_10);
-                } else if (percent >= 15 && percent < 40) {
-                    battery_level.setBackgroundResource(R.drawable.jz_battery_level_30);
-                } else if (percent >= 40 && percent < 60) {
-                    battery_level.setBackgroundResource(R.drawable.jz_battery_level_50);
-                } else if (percent >= 60 && percent < 80) {
-                    battery_level.setBackgroundResource(R.drawable.jz_battery_level_70);
-                } else if (percent >= 80 && percent < 95) {
-                    battery_level.setBackgroundResource(R.drawable.jz_battery_level_90);
-                } else if (percent >= 95 && percent <= 100) {
-                    battery_level.setBackgroundResource(R.drawable.jz_battery_level_100);
-                }
-                getContext().unregisterReceiver(battertReceiver);
-                brocasting = false;
-            }
-        }
-    };
 
     public JZVideoPlayerStandard(Context context) {
         super(context);
@@ -104,24 +85,54 @@ public class JZVideoPlayerStandard extends JZVideoPlayer {
     public void init(Context context) {
         super.init(context);
 
-        batteryTimeLayout = findViewById(R.id.battery_time_layout);
-        bottomProgressBar = findViewById(R.id.bottom_progress);
-        titleTextView = findViewById(R.id.title);
-        backButton = findViewById(R.id.back);
-        thumbImageView = findViewById(R.id.thumb);
-        loadingProgressBar = findViewById(R.id.loading);
-        tinyBackImageView = findViewById(R.id.back_tiny);
-        battery_level = findViewById(R.id.battery_level);
-        video_current_time = findViewById(R.id.video_current_time);
-        retryTextView = findViewById(R.id.retry_text);
-        clarity = findViewById(R.id.clarity);
+        batteryTimeLayout = (LinearLayout) findViewById(R.id.battery_time_layout);
+        bottomProgressBar = (ProgressBar) findViewById(R.id.bottom_progress);
+        titleTextView = (TextView) findViewById(R.id.title);
+        backButton = (ImageView) findViewById(R.id.back);
+        thumbImageView = (ImageView) findViewById(R.id.thumb);
+        loadingProgressBar = (ProgressBar) findViewById(R.id.loading);
+        tinyBackImageView = (ImageView) findViewById(R.id.back_tiny);
+        battery_level = (ImageView) findViewById(R.id.battery_level);
+        video_current_time = (TextView) findViewById(R.id.video_current_time);
+        retryTextView = (TextView) findViewById(R.id.retry_text);
+        clarity = (TextView) findViewById(R.id.clarity);
 
         thumbImageView.setOnClickListener(this);
         backButton.setOnClickListener(this);
         tinyBackImageView.setOnClickListener(this);
         clarity.setOnClickListener(this);
 
+
+//        setNetListener();
     }
+
+    public NetWorkReceiver netWorkReceiver;
+
+    public void setNetListener(NetWorkReceiverCallback netWorkReceiverCallback) {
+        IntentFilter intentFilter = new IntentFilter();
+        intentFilter.addAction(ConnectivityManager.CONNECTIVITY_ACTION);
+        netWorkReceiver = new NetWorkReceiver(netWorkReceiverCallback);
+        getContext().registerReceiver(netWorkReceiver, intentFilter);
+    }
+
+//   public NetWorkReceiverCallback netWorkReceiverCallback = new NetWorkReceiverCallback() {
+//
+//        @Override
+//        public void onWifi() {
+//
+//        }
+//
+//        @Override
+//        public void onMobile() {
+//
+//        }
+//
+//        @Override
+//        public void onNotConnected() {
+//
+//        }
+//    };
+
 
     public void setUp(LinkedHashMap urlMap, int defaultUrlMapIndex, int screen, Object... objects) {
         super.setUp(urlMap, defaultUrlMapIndex, screen, objects);
@@ -266,6 +277,10 @@ public class JZVideoPlayerStandard extends JZVideoPlayer {
         super.onClick(v);
         int i = v.getId();
         if (i == R.id.thumb) {
+            if (urlMap == null) {
+                urlMap = new LinkedHashMap();
+                urlMap.put(URL_KEY_DEFAULT, mUrl);
+            }
             if (TextUtils.isEmpty(JZUtils.getCurrentUrlFromMap(urlMap, currentUrlMapIndex))) {
                 Toast.makeText(getContext(), getResources().getString(R.string.no_url), Toast.LENGTH_SHORT).show();
                 return;
@@ -285,7 +300,9 @@ public class JZVideoPlayerStandard extends JZVideoPlayer {
         } else if (i == R.id.surface_container) {
             startDismissControlViewTimer();
         } else if (i == R.id.back) {
+            onEvent(JZUserAction.ON_TOUCH_BACK_BEFOR);
             backPress();
+            onEvent(JZUserAction.ON_TOUCH_BACK_LAST);
         } else if (i == R.id.back_tiny) {
             backPress();
         } else if (i == R.id.clarity) {
@@ -326,46 +343,58 @@ public class JZVideoPlayerStandard extends JZVideoPlayer {
             clarityPopWindow = new PopupWindow(layout, LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, true);
             clarityPopWindow.setContentView(layout);
             clarityPopWindow.showAsDropDown(clarity);
-            layout.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
+            layout.measure(MeasureSpec.UNSPECIFIED, MeasureSpec.UNSPECIFIED);
             clarityPopWindow.update(clarity, -40, 46, Math.round(layout.getMeasuredWidth() * 2), layout.getMeasuredHeight());
         }
     }
 
+    public void setWifiDialogShow(boolean isShow) {
+        isShowWifiDialog = isShow;
+    }
+
+    public boolean isShowWifiDialog = false;
+
     @Override
     public void showWifiDialog(int action) {
         super.showWifiDialog(action);
-        AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
-        builder.setMessage(getResources().getString(R.string.tips_not_wifi));
-        builder.setPositiveButton(getResources().getString(R.string.tips_not_wifi_confirm), new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                dialog.dismiss();
-                onEvent(JZUserActionStandard.ON_CLICK_START_THUMB);
-                startVideo();
-                WIFI_TIP_DIALOG_SHOWED = true;
-            }
-        });
-        builder.setNegativeButton(getResources().getString(R.string.tips_not_wifi_cancel), new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                dialog.dismiss();
-                if (currentScreen == SCREEN_WINDOW_FULLSCREEN) {
+        if (isShowWifiDialog) {
+            AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
+            builder.setMessage(getResources().getString(R.string.tips_not_wifi));
+            builder.setPositiveButton(getResources().getString(R.string.tips_not_wifi_confirm), new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
                     dialog.dismiss();
-                    clearFullscreenLayout();
+                    onEvent(JZUserActionStandard.ON_CLICK_START_THUMB);
+                    startVideo();
+                    WIFI_TIP_DIALOG_SHOWED = true;
                 }
-            }
-        });
-        builder.setOnCancelListener(new DialogInterface.OnCancelListener() {
-            @Override
-            public void onCancel(DialogInterface dialog) {
-                dialog.dismiss();
-                if (currentScreen == SCREEN_WINDOW_FULLSCREEN) {
+            });
+            builder.setNegativeButton(getResources().getString(R.string.tips_not_wifi_cancel), new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
                     dialog.dismiss();
-                    clearFullscreenLayout();
+                    if (currentScreen == SCREEN_WINDOW_FULLSCREEN) {
+                        dialog.dismiss();
+                        clearFullscreenLayout();
+                    }
                 }
-            }
-        });
-        builder.create().show();
+            });
+            builder.setOnCancelListener(new DialogInterface.OnCancelListener() {
+                @Override
+                public void onCancel(DialogInterface dialog) {
+                    dialog.dismiss();
+                    if (currentScreen == SCREEN_WINDOW_FULLSCREEN) {
+                        dialog.dismiss();
+                        clearFullscreenLayout();
+                    }
+                }
+            });
+            builder.create().show();
+        } else {
+            onEvent(JZUserActionStandard.ON_CLICK_START_THUMB);
+            startVideo();
+            WIFI_TIP_DIALOG_SHOWED = true;
+        }
     }
 
     @Override
@@ -377,11 +406,12 @@ public class JZVideoPlayerStandard extends JZVideoPlayer {
     @Override
     public void onStopTrackingTouch(SeekBar seekBar) {
         super.onStopTrackingTouch(seekBar);
-        if (currentState == CURRENT_STATE_PLAYING) {
-            dissmissControlView();
-        } else {
-            startDismissControlViewTimer();
-        }
+//        startDismissControlViewTimer();
+//        if (currentState == CURRENT_STATE_PLAYING) {
+//            dissmissControlView();
+//        } else {
+        startDismissControlViewTimer();
+//        }
     }
 
     public void onClickUiToggle() {
@@ -428,6 +458,33 @@ public class JZVideoPlayerStandard extends JZVideoPlayer {
             );
         }
     }
+
+
+    private BroadcastReceiver battertReceiver = new BroadcastReceiver() {
+        public void onReceive(Context context, Intent intent) {
+            String action = intent.getAction();
+            if (Intent.ACTION_BATTERY_CHANGED.equals(action)) {
+                int level = intent.getIntExtra("level", 0);
+                int scale = intent.getIntExtra("scale", 100);
+                int percent = level * 100 / scale;
+                if (percent < 15) {
+                    battery_level.setBackgroundResource(R.drawable.jz_battery_level_10);
+                } else if (percent >= 15 && percent < 40) {
+                    battery_level.setBackgroundResource(R.drawable.jz_battery_level_30);
+                } else if (percent >= 40 && percent < 60) {
+                    battery_level.setBackgroundResource(R.drawable.jz_battery_level_50);
+                } else if (percent >= 60 && percent < 80) {
+                    battery_level.setBackgroundResource(R.drawable.jz_battery_level_70);
+                } else if (percent >= 80 && percent < 95) {
+                    battery_level.setBackgroundResource(R.drawable.jz_battery_level_90);
+                } else if (percent >= 95 && percent <= 100) {
+                    battery_level.setBackgroundResource(R.drawable.jz_battery_level_100);
+                }
+                getContext().unregisterReceiver(battertReceiver);
+                brocasting = false;
+            }
+        }
+    };
 
     public void onCLickUiToggleToClear() {
         if (currentState == CURRENT_STATE_PREPARING) {
@@ -735,15 +792,16 @@ public class JZVideoPlayerStandard extends JZVideoPlayer {
         }
     }
 
+
     @Override
     public void showProgressDialog(float deltaX, String seekTime, int seekTimePosition, String totalTime, int totalTimeDuration) {
         super.showProgressDialog(deltaX, seekTime, seekTimePosition, totalTime, totalTimeDuration);
         if (mProgressDialog == null) {
             View localView = LayoutInflater.from(getContext()).inflate(R.layout.jz_dialog_progress, null);
-            mDialogProgressBar = localView.findViewById(R.id.duration_progressbar);
-            mDialogSeekTime = localView.findViewById(R.id.tv_current);
-            mDialogTotalTime = localView.findViewById(R.id.tv_duration);
-            mDialogIcon = localView.findViewById(R.id.duration_image_tip);
+            mDialogProgressBar = ((ProgressBar) localView.findViewById(R.id.duration_progressbar));
+            mDialogSeekTime = ((TextView) localView.findViewById(R.id.tv_current));
+            mDialogTotalTime = ((TextView) localView.findViewById(R.id.tv_duration));
+            mDialogIcon = ((ImageView) localView.findViewById(R.id.duration_image_tip));
             mProgressDialog = createDialogWithView(localView);
         }
         if (!mProgressDialog.isShowing()) {
@@ -769,14 +827,15 @@ public class JZVideoPlayerStandard extends JZVideoPlayer {
         }
     }
 
+
     @Override
     public void showVolumeDialog(float deltaY, int volumePercent) {
         super.showVolumeDialog(deltaY, volumePercent);
         if (mVolumeDialog == null) {
             View localView = LayoutInflater.from(getContext()).inflate(R.layout.jz_dialog_volume, null);
-            mDialogVolumeImageView = localView.findViewById(R.id.volume_image_tip);
-            mDialogVolumeTextView = localView.findViewById(R.id.tv_volume);
-            mDialogVolumeProgressBar = localView.findViewById(R.id.volume_progressbar);
+            mDialogVolumeImageView = ((ImageView) localView.findViewById(R.id.volume_image_tip));
+            mDialogVolumeTextView = ((TextView) localView.findViewById(R.id.tv_volume));
+            mDialogVolumeProgressBar = ((ProgressBar) localView.findViewById(R.id.volume_progressbar));
             mVolumeDialog = createDialogWithView(localView);
         }
         if (!mVolumeDialog.isShowing()) {
@@ -805,13 +864,14 @@ public class JZVideoPlayerStandard extends JZVideoPlayer {
         }
     }
 
+
     @Override
     public void showBrightnessDialog(int brightnessPercent) {
         super.showBrightnessDialog(brightnessPercent);
         if (mBrightnessDialog == null) {
             View localView = LayoutInflater.from(getContext()).inflate(R.layout.jz_dialog_brightness, null);
-            mDialogBrightnessTextView = localView.findViewById(R.id.tv_brightness);
-            mDialogBrightnessProgressBar = localView.findViewById(R.id.brightness_progressbar);
+            mDialogBrightnessTextView = ((TextView) localView.findViewById(R.id.tv_brightness));
+            mDialogBrightnessProgressBar = ((ProgressBar) localView.findViewById(R.id.brightness_progressbar));
             mBrightnessDialog = createDialogWithView(localView);
         }
         if (!mBrightnessDialog.isShowing()) {
@@ -866,21 +926,6 @@ public class JZVideoPlayerStandard extends JZVideoPlayer {
 
     }
 
-    @Override
-    public void onAutoCompletion() {
-        super.onAutoCompletion();
-        cancelDismissControlViewTimer();
-    }
-
-    @Override
-    public void onCompletion() {
-        super.onCompletion();
-        cancelDismissControlViewTimer();
-        if (clarityPopWindow != null) {
-            clarityPopWindow.dismiss();
-        }
-    }
-
     public class DismissControlViewTimerTask extends TimerTask {
 
         @Override
@@ -909,6 +954,110 @@ public class JZVideoPlayerStandard extends JZVideoPlayer {
                     }
                 });
             }
+        }
+    }
+
+    @Override
+    public void onAutoCompletion() {
+        super.onAutoCompletion();
+        cancelDismissControlViewTimer();
+    }
+
+    @Override
+    public void onCompletion() {
+        super.onCompletion();
+        cancelDismissControlViewTimer();
+        if (clarityPopWindow != null) {
+            clarityPopWindow.dismiss();
+        }
+    }
+
+    @Override
+    protected void onDetachedFromWindow() {
+        super.onDetachedFromWindow();
+
+    }
+
+    //在Activity获取焦点时是否自动播放
+    public boolean isAutoPlayer = true;
+
+    /**
+     * Activity失去焦点，如果之前视频是正在播放的，就暂停播放并且下次获取焦点后自动播放
+     * 否则不处理，并且下次获取焦点后不自动播放
+     */
+    public void onActivityPause() {
+        try {
+
+            if (players.currentState == CURRENT_STATE_PLAYING) {
+                isAutoPlayer = true;
+                //直接暂停视频
+                if (players != null) {
+                    players.setPause();
+                    players.setState(CURRENT_STATE_PAUSE);
+                }
+            } else {
+                isAutoPlayer = false;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Activity获取焦点，如果之前视频是暂停的就播放，否则不播放
+     */
+    public void onActivityResume() {
+        try {
+            if (players.currentState == CURRENT_STATE_PAUSE && isAutoPlayer) {
+                //如果在锁屏前没有按暂停键，解锁后自动播放，否则不播放视频
+
+                //坑，要暂停，播放等等操作，要是用这个对象，这个对象是对全屏处理的
+                if (players != null) {
+                    //播放视频
+                    players.setStart();
+                    players.setState(CURRENT_STATE_PLAYING);
+                }
+
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Activity销毁时收尾工作
+     */
+    public void onActivityDestroy() {
+        //这一直必须有，如果没有的话，下次进来会出现视频不能播放的情况
+        players = null;
+        //取消广播
+        if (null != netWorkReceiver)
+            getContext().unregisterReceiver(netWorkReceiver);
+
+        //释放视频
+        try {
+            JZVideoPlayer.releaseAllVideos();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static final int NET_STATUS_WIFI = 0x0000;
+    public static final int NET_STATUS_MOBOLE = 0x0001;
+    public static final int NET_STATUS_NONET = 0x0002;
+
+
+    public int getBestNetStatus(){
+        //有网
+        if (NetDataUtil.isNetworkConnected(getContext())) {
+            //是手机流量
+            if (NetDataUtil.isMobileConnected(getContext())) {
+                return NET_STATUS_MOBOLE;
+            } else {
+                return NET_STATUS_WIFI;
+            }
+        } else {
+           return NET_STATUS_NONET;
         }
     }
 }

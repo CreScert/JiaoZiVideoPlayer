@@ -24,6 +24,22 @@ public interface JZUserAction {
     int ON_TOUCH_SCREEN_SEEK_VOLUME = 11;
     int ON_TOUCH_SCREEN_SEEK_POSITION = 12;
 
+    int ON_TOUCH_BACK_BEFOR = 13;
+    int ON_TOUCH_BACK_LAST = 14;
+
+    int ON_TOUCH_FULLSCREEN_BEFOR = 15;
+    int ON_TOUCH_FULLSCREEN_LAST = 16;
+
+
+    int ON_STATE_NORMAL = 40;
+    int ON_STATE_PREPARING = 41;
+    int ON_STATE_PREPARING_CHANGING_URL = 42;
+    int ON_STATE_PLAYING = 43;
+    int ON_STATE_PAUSE = 44;
+    int ON_STATE_PLAYING_BUFFER_START = 45;
+    int ON_STATE_ERROR = 46;
+    int ON_STATE_COMPLETE = 47;
+
     void onEvent(int type, String url, int screen, Object... objects);
 
 }
