@@ -6,11 +6,7 @@ import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.telephony.TelephonyManager;
 
-/**
- * Created by eme on 2017/9/22.
- * 获取网络状态
- * 需在AndroidManifest.xml添加权限<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
- */
+
 
 public class NetDataUtil {
     /**
