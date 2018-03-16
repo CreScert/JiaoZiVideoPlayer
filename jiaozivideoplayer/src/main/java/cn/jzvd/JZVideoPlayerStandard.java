@@ -12,6 +12,7 @@ import android.graphics.Color;
 import android.net.ConnectivityManager;
 import android.text.TextUtils;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
@@ -518,9 +519,19 @@ public class JZVideoPlayerStandard extends JZVideoPlayer {
     @Override
     public void setProgressAndText(int progress, int position, int duration) {
         super.setProgressAndText(progress, position, duration);
+        if(mChangeListener!=null){
+            mChangeListener.onChangeListener(progress,position,duration);
+        }
         if (progress != 0) bottomProgressBar.setProgress(progress);
     }
 
+    public interface ChangeListener{
+        void onChangeListener(int progress, int position, int duration);
+    }
+    public ChangeListener mChangeListener;
+    public void setOnChangeListener(ChangeListener listener){
+        mChangeListener = listener;
+    }
     @Override
     public void setBufferProgress(int bufferProgress) {
         super.setBufferProgress(bufferProgress);
@@ -988,15 +999,26 @@ public class JZVideoPlayerStandard extends JZVideoPlayer {
     public void onActivityPause() {
         try {
 
-            if (players.currentState == CURRENT_STATE_PLAYING) {
-                isAutoPlayer = true;
-                //直接暂停视频
-                if (players != null) {
-                    players.setPause();
-                    players.setState(CURRENT_STATE_PAUSE);
+            if(null!=players){
+                if (players.currentState == CURRENT_STATE_PLAYING) {
+                    isAutoPlayer = true;
+                    //直接暂停视频
+                    if (players != null) {
+                        players.setPause();
+                        players.setState(CURRENT_STATE_PAUSE);
+                    }
+                } else {
+                    isAutoPlayer = false;
                 }
-            } else {
-                isAutoPlayer = false;
+            }else{
+                if (currentState == CURRENT_STATE_PLAYING || currentState == CURRENT_STATE_NORMAL) {
+                    isAutoPlayer = true;
+                    setPause();
+                    setState(CURRENT_STATE_PAUSE);
+
+                } else {
+                    isAutoPlayer = false;
+                }
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -1008,16 +1030,28 @@ public class JZVideoPlayerStandard extends JZVideoPlayer {
      */
     public void onActivityResume() {
         try {
-            if (players.currentState == CURRENT_STATE_PAUSE && isAutoPlayer) {
-                //如果在锁屏前没有按暂停键，解锁后自动播放，否则不播放视频
+            if(null!=players){
+                if (players.currentState == CURRENT_STATE_PAUSE && isAutoPlayer) {
+                    //如果在锁屏前没有按暂停键，解锁后自动播放，否则不播放视频
 
-                //坑，要暂停，播放等等操作，要是用这个对象，这个对象是对全屏处理的
-                if (players != null) {
-                    //播放视频
-                    players.setStart();
-                    players.setState(CURRENT_STATE_PLAYING);
+                    //坑，要暂停，播放等等操作，要是用这个对象，这个对象是对全屏处理的
+                    if (players != null) {
+                        //播放视频
+                        players.setStart();
+                        players.setState(CURRENT_STATE_PLAYING);
+                    }
+                }else {
+                    isAutoPlayer = false;
                 }
+            }else{
+                if (currentState == CURRENT_STATE_PAUSE && isAutoPlayer || currentState == CURRENT_STATE_NORMAL) {
+                    isAutoPlayer = true;
+                    setStart();
+                    setState(CURRENT_STATE_NORMAL);
 
+                } else {
+                    isAutoPlayer = false;
+                }
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -1034,6 +1068,9 @@ public class JZVideoPlayerStandard extends JZVideoPlayer {
         if (null != netWorkReceiver)
             getContext().unregisterReceiver(netWorkReceiver);
 
+        if(null!=mChangeListener){
+            mChangeListener = null;
+        }
         //释放视频
         try {
             JZVideoPlayer.releaseAllVideos();

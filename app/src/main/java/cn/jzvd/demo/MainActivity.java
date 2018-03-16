@@ -1,12 +1,15 @@
 package cn.jzvd.demo;
 
 import android.content.Intent;
+import android.os.Build;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
+import android.support.annotation.RequiresApi;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.ProgressBar;
 
 import com.squareup.picasso.Picasso;
 
@@ -26,6 +29,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     Button mTinyWindow, mAutoTinyWindow, mAboutListView, mPlayDirectly, mAboutApi, mAboutWebView;
 
+    @RequiresApi(api = Build.VERSION_CODES.M)
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -46,19 +50,31 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mAboutWebView.setOnClickListener(this);
 
         myJZVideoPlayerStandard = (MyJZVideoPlayerStandard) findViewById(R.id.jz_video);
-        myJZVideoPlayerStandard.setUp("http://jzvd.nathen.cn/342a5f7ef6124a4a8faf00e738b8bee4/cf6d9db0bd4d41f59d09ea0a81e918fd-5287d2089db37e62345123a1be272f8b.mp4"
+        String url = VideoConstant.videoUrlList[5];
+        myJZVideoPlayerStandard.setUp(url
                 , JZVideoPlayerStandard.SCREEN_LAYOUT_NORMAL, "嫂子快长大");
         Picasso.with(this)
                 .load("http://jzvd-pic.nathen.cn/jzvd-pic/1bb2ebbe-140d-4e2e-abd2-9e7e564f71ac.png")
                 .into(myJZVideoPlayerStandard.thumbImageView);
 
         JZVideoPlayer.setJzUserAction(new MyUserActionStandard());
+
+
+        myJZVideoPlayerStandard.setOnChangeListener(new JZVideoPlayerStandard.ChangeListener() {
+            @Override
+            public void onChangeListener(int progress, int position, int duration) {
+                Log.e("监控的进度信息","progress:"+progress+"...position:"+position+"....duration:"+duration);
+                if(progress >=20){
+                    myJZVideoPlayerStandard.setPause();
+                }
+            }
+        });
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-        JZVideoPlayer.releaseAllVideos();
+//        JZVideoPlayer.releaseAllVideos();
     }
 
     @Override
